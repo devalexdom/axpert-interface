@@ -124,6 +124,11 @@ class AxpertInterface {
       setTimeout(() => {
         if (!this.deviceData) reject("timeout"); //Rejection by timeout
       }, this.parameters.deviceStatusQueryInterval * 10000);
+
+      if (!this.deviceData) {
+        this.queryDevice("QPIGS", handleResponse);
+      }
+
       this.dataQueryInterval = setInterval(() => {
         this.queryDevice("QPIGS", handleResponse);
       }, this.parameters.deviceStatusQueryInterval * 1000);
