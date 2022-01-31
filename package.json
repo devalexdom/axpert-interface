@@ -1,6 +1,6 @@
 {
   "name": "@devalexdom/axpert-interface",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "An interface in TypeScript to communicate with Voltronic/Axpert inverters, read and configure parameters in an easy and stable way under Node.JS",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

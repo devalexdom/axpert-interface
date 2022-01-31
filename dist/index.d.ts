@@ -5,6 +5,7 @@ interface AxpertInterface_Parameters {
     deviceStatusQueryInterval?: number;
     devicesByIdPath?: string;
     autoInitDataStream?: boolean;
+    retryFailedCommandOnce?: boolean;
 }
 interface AxpertInterface_EventData {
     message?: string;
@@ -23,9 +24,10 @@ export default class AxpertInterface {
     deviceData: AxpertInterface_DeviceData;
     dataQueryInterval: NodeJS.Timeout;
     commandResponsePending: boolean;
-    constructor(serialPortDevicePath: string, { deviceStatusQueryInterval, autoInitDataStream }?: {
+    constructor(serialPortDevicePath: string, { deviceStatusQueryInterval, autoInitDataStream, retryFailedCommandOnce }?: {
         deviceStatusQueryInterval?: number;
         autoInitDataStream?: boolean;
+        retryFailedCommandOnce?: boolean;
     });
     on(event: string, callback: Function): void;
     emitEvent(event: string, eventData?: AxpertInterface_EventData): void;
@@ -35,6 +37,7 @@ export default class AxpertInterface {
     queryDevice(commandId: string, responseCallback: Function, errorCallback?: Function): void;
     setDevice(commandId: string, setValue: string, responseCallback: Function, errorCallback?: Function): void;
     handleCommands(): void;
+    retryCommand(commandPromise: any): void;
     getNextCommandPromise(): Function;
     clean(): void;
     reset(): void;
