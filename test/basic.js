@@ -1,5 +1,5 @@
 const AxpertInterface = require("../dist/index");
-const axpertInterface = new AxpertInterface("/dev/serial/by-id/...");
+const axpertInterface = new AxpertInterface("/dev/ttyUSB0");
 
 const readData = () => {
     setInterval(() => {
@@ -33,9 +33,19 @@ setTimeout(() => {
 }, 15000);
 
 setTimeout(() => {
+    console.log("Setting AC input charging max current to 20A...");
+    axpertInterface.setACInputMaxChargingCurrent(20, (response)=> {
+        const responseTxt = response? "OK" : "NOPE";
+        console.log(`Device responds: ${responseTxt}`);
+    });
+}, 20000);
+
+/*
+setTimeout(() => {
     console.log("Setting battery as power priority...");
     axpertInterface.setBatteryAsPowerPriority((response)=> {
         const responseTxt = response? "OK" : "NOPE";
         console.log(`Device responds: ${responseTxt}`);
     });
 }, 22000);
+*/

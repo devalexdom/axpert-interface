@@ -18,8 +18,8 @@ class AxpertInterface_DeviceData {
     this.batteryChargingCurrent = axpertMonitorQueriedData["batteryChargingCurrent"];
     this.batteryDischargeCurrent = axpertMonitorQueriedData["batteryDischargeCurrent"];
     this.batteryCurrent = this.batteryChargingCurrent - this.batteryDischargeCurrent;
-    this.photovoltaicVoltage = axpertMonitorQueriedData["batteryCurrent"];
-    this.photovoltaicChargingBatteryCurrent = axpertMonitorQueriedData["batteryCurrent"];
+    this.photovoltaicVoltage = axpertMonitorQueriedData["pvInputVoltage"];
+    this.photovoltaicChargingBatteryCurrent = axpertMonitorQueriedData["pvBatteryCurrent"];
     this.photovoltaicPower = this.batteryVoltageSCC * this.photovoltaicChargingBatteryCurrent;
     this.addSBUPriorityVersion = axpertMonitorQueriedData["status"]["addSBUPriorityVersion"];
     this.configChanged = axpertMonitorQueriedData["status"]["configChanged"];
@@ -36,7 +36,7 @@ class AxpertInterface_DeviceData {
 
 class AxpertInterface {
   constructor(serialPortDevicePath, {
-    deviceStatusQueryInterval = 1,
+    deviceStatusQueryInterval = 5,
     autoInitDataStream = true
   } = {}) {
     this.version = 0.01;
