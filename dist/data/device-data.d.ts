@@ -1,0 +1,30 @@
+export declare class AxpertInterface_DeviceData {
+    acInputVoltage: number;
+    acInputFrequency: number;
+    acOutputVoltage: number;
+    acOutputFrequency: number;
+    acOutputPowerApparent: number;
+    acOutputPowerActive: number;
+    acOutputLoadPercent: number;
+    busVoltage: number;
+    batteryVoltage: number;
+    batteryVoltageSCC: number;
+    batteryCapacityPercent: number;
+    batteryCurrent: number;
+    batteryChargingCurrent: number;
+    batteryDischargeCurrent: number;
+    photovoltaicVoltage: number;
+    photovoltaicPower: number;
+    photovoltaicChargingBatteryCurrent: number;
+    deviceTemperature: number;
+    addSBUPriorityVersion: boolean;
+    configChanged: boolean;
+    sccFirmwareUpdates: boolean;
+    loadOn: boolean;
+    batteryVoltToSteady: boolean;
+    charging: boolean;
+    photovoltaicCharging: boolean;
+    acCharging: boolean;
+    dataTimeStamp: number;
+    constructor(axpertMonitorQueriedData: any);
+}
