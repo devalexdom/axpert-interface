@@ -23,10 +23,8 @@ export default class AxpertInterface {
     deviceData: AxpertInterface_DeviceData;
     dataQueryInterval: NodeJS.Timeout;
     commandResponsePending: boolean;
-    constructor({ serialPortDevicePath, deviceStatusQueryInterval, devicesByIdPath, autoInitDataStream }?: {
-        serialPortDevicePath?: string;
+    constructor(serialPortDevicePath: string, { deviceStatusQueryInterval, autoInitDataStream }?: {
         deviceStatusQueryInterval?: number;
-        devicesByIdPath?: string;
         autoInitDataStream?: boolean;
     });
     on(event: string, callback: Function): void;

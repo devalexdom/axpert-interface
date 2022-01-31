@@ -29,11 +29,10 @@ export default class AxpertInterface {
   deviceData: AxpertInterface_DeviceData;
   dataQueryInterval: NodeJS.Timeout;
   commandResponsePending: boolean;
-  constructor({ serialPortDevicePath = "", deviceStatusQueryInterval = 1, devicesByIdPath = "/dev/serial/by-id/", autoInitDataStream = true } = {}) {
+  constructor(serialPortDevicePath: string, { deviceStatusQueryInterval = 1, autoInitDataStream = true } = {}) {
     this.version = 0.01;
     this.parameters = {
       deviceStatusQueryInterval,
-      devicesByIdPath,
       serialPortDevicePath,
       autoInitDataStream
     };
@@ -127,10 +126,10 @@ export default class AxpertInterface {
             reject(errorData);
             return;
           }
-          const rawConsoleResponse = stdout.split('\n');
-          if (rawConsoleResponse[1] && rawConsoleResponse[1].indexOf("NAK") === -1 && rawConsoleResponse[1].indexOf("missmatch") === -1) {
-            resolve(rawConsoleResponse[1]);
-            responseCallback(rawConsoleResponse[1]);
+          const rawConsoleResponse = stdout.split('\n').slice(1).join('');
+          if (rawConsoleResponse && rawConsoleResponse.indexOf("NAK") === -1 && rawConsoleResponse.indexOf("missmatch") === -1) {
+            resolve(rawConsoleResponse);
+            responseCallback(rawConsoleResponse);
           }
           else {
             if (errorCallback) errorCallback(rawConsoleResponse);
@@ -154,9 +153,9 @@ export default class AxpertInterface {
             reject(errorData);
             return;
           }
-          const rawConsoleResponse = stdout.split('\n');
-          if (rawConsoleResponse[1] && (rawConsoleResponse[1].indexOf("ACK") !== -1 || rawConsoleResponse[1].indexOf("NAK") !== -1)) {
-            switch (rawConsoleResponse[1]) {
+          const rawConsoleResponse = stdout.split('\n').slice(1).join('');
+          if (rawConsoleResponse && (rawConsoleResponse.indexOf("ACK") !== -1 || rawConsoleResponse.indexOf("NAK") !== -1)) {
+            switch (rawConsoleResponse) {
               case "ACK":
                 responseCallback(true);
                 break;

@@ -35,16 +35,13 @@ class AxpertInterface_DeviceData {
 }
 
 class AxpertInterface {
-  constructor({
-    serialPortDevicePath = "",
+  constructor(serialPortDevicePath, {
     deviceStatusQueryInterval = 1,
-    devicesByIdPath = "/dev/serial/by-id/",
     autoInitDataStream = true
   } = {}) {
     this.version = 0.01;
     this.parameters = {
       deviceStatusQueryInterval,
-      devicesByIdPath,
       serialPortDevicePath,
       autoInitDataStream
     };
@@ -145,11 +142,11 @@ class AxpertInterface {
             return;
           }
 
-          const rawConsoleResponse = stdout.split('\n');
+          const rawConsoleResponse = stdout.split('\n').slice(1).join('');
 
-          if (rawConsoleResponse[1] && rawConsoleResponse[1].indexOf("NAK") === -1 && rawConsoleResponse[1].indexOf("missmatch") === -1) {
-            resolve(rawConsoleResponse[1]);
-            responseCallback(rawConsoleResponse[1]);
+          if (rawConsoleResponse && rawConsoleResponse.indexOf("NAK") === -1 && rawConsoleResponse.indexOf("missmatch") === -1) {
+            resolve(rawConsoleResponse);
+            responseCallback(rawConsoleResponse);
           } else {
             if (errorCallback) errorCallback(rawConsoleResponse);
             reject(rawConsoleResponse);
@@ -175,10 +172,10 @@ class AxpertInterface {
             return;
           }
 
-          const rawConsoleResponse = stdout.split('\n');
+          const rawConsoleResponse = stdout.split('\n').slice(1).join('');
 
-          if (rawConsoleResponse[1] && (rawConsoleResponse[1].indexOf("ACK") !== -1 || rawConsoleResponse[1].indexOf("NAK") !== -1)) {
-            switch (rawConsoleResponse[1]) {
+          if (rawConsoleResponse && (rawConsoleResponse.indexOf("ACK") !== -1 || rawConsoleResponse.indexOf("NAK") !== -1)) {
+            switch (rawConsoleResponse) {
               case "ACK":
                 responseCallback(true);
                 break;
