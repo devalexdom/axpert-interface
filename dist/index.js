@@ -1,35 +1,46 @@
-import { exec } from "child_process";
-import { AxpertInterface_DeviceData } from "./data/device-data";
+'use strict';
 
+var child_process = require('child_process');
 
-interface AxpertInterface_Parameters {
-  serialPortDevicePath: string;
-  deviceStatusQueryInterval?: number;
-  devicesByIdPath?: string;
-  autoInitDataStream?: boolean;
+class AxpertInterface_DeviceData {
+  constructor(axpertMonitorQueriedData) {
+    this.acInputVoltage = axpertMonitorQueriedData["gridVoltage"];
+    this.acInputFrequency = axpertMonitorQueriedData["gridFrequency"];
+    this.acOutputVoltage = axpertMonitorQueriedData["outputVoltage"];
+    this.acOutputFrequency = axpertMonitorQueriedData["outputFrequency"];
+    this.acOutputPowerApparent = axpertMonitorQueriedData["outputPowerApparent"];
+    this.acOutputPowerActive = axpertMonitorQueriedData["outputPowerActive"];
+    this.acOutputLoadPercent = axpertMonitorQueriedData["outputLoadPercent"];
+    this.busVoltage = axpertMonitorQueriedData["busVoltage"];
+    this.batteryVoltage = axpertMonitorQueriedData["batteryVoltage"];
+    this.batteryVoltageSCC = axpertMonitorQueriedData["batteryVoltageSCC"];
+    this.batteryCapacityPercent = axpertMonitorQueriedData["batteryCapacity"];
+    this.batteryChargingCurrent = axpertMonitorQueriedData["batteryChargingCurrent"];
+    this.batteryDischargeCurrent = axpertMonitorQueriedData["batteryDischargeCurrent"];
+    this.batteryCurrent = this.batteryChargingCurrent - this.batteryDischargeCurrent;
+    this.photovoltaicVoltage = axpertMonitorQueriedData["batteryCurrent"];
+    this.photovoltaicChargingBatteryCurrent = axpertMonitorQueriedData["batteryCurrent"];
+    this.photovoltaicPower = this.batteryVoltageSCC * this.photovoltaicChargingBatteryCurrent;
+    this.addSBUPriorityVersion = axpertMonitorQueriedData["status"]["addSBUPriorityVersion"];
+    this.configChanged = axpertMonitorQueriedData["status"]["configChanged"];
+    this.sccFirmwareUpdates = axpertMonitorQueriedData["status"]["sccFirmwareUpdates"];
+    this.loadOn = axpertMonitorQueriedData["status"]["loadOn"];
+    this.charging = axpertMonitorQueriedData["status"]["charging"];
+    this.photovoltaicCharging = axpertMonitorQueriedData["status"]["chargingSCC"];
+    this.acCharging = axpertMonitorQueriedData["status"]["chargingAC"];
+    this.deviceTemperature = axpertMonitorQueriedData["temperature"];
+    this.dataTimeStamp = new Date().getTime();
+  }
+
 }
 
-interface AxpertInterface_EventData {
-  message?: string,
-  dataDump?: any,
-  eventName?: string
-}
-
-interface AxpertInterface_DeviceCommands {
-  queryStack: Array<Function>;
-  setStack: Array<Function>;
-}
-
-
-export default class AxpertInterface {
-  version: number;
-  parameters: AxpertInterface_Parameters;
-  listenersStack: Array<Function>;
-  deviceCommands: AxpertInterface_DeviceCommands;
-  deviceData: AxpertInterface_DeviceData;
-  dataQueryInterval: NodeJS.Timeout;
-  commandResponsePending: boolean;
-  constructor({ serialPortDevicePath = "", deviceStatusQueryInterval = 1, devicesByIdPath = "/dev/serial/by-id/", autoInitDataStream = true } = {}) {
+class AxpertInterface {
+  constructor({
+    serialPortDevicePath = "",
+    deviceStatusQueryInterval = 1,
+    devicesByIdPath = "/dev/serial/by-id/",
+    autoInitDataStream = true
+  } = {}) {
     this.version = 0.01;
     this.parameters = {
       deviceStatusQueryInterval,
@@ -48,22 +59,25 @@ export default class AxpertInterface {
     this.init();
   }
 
-  on(event: string, callback: Function): void {
-    const listener = (eventEmmited: string, eventData?: AxpertInterface_EventData) => {
+  on(event, callback) {
+    const listener = (eventEmmited, eventData) => {
       if (event === eventEmmited || event === "all") {
         callback(eventData);
       }
-    }
+    };
+
     this.listenersStack.push(listener);
   }
 
-  emitEvent(event: string, eventData?: AxpertInterface_EventData) {
+  emitEvent(event, eventData) {
     for (const listener of this.listenersStack) {
-      listener(event, { ...eventData, ...{ eventName: event } });
+      listener(event, Object.assign(Object.assign({}, eventData), {
+        eventName: event
+      }));
     }
   }
 
-  mapAxpertDeviceData(deviceDataJSON: string): AxpertInterface_DeviceData {
+  mapAxpertDeviceData(deviceDataJSON) {
     return new AxpertInterface_DeviceData(JSON.parse(deviceDataJSON));
   }
 
@@ -75,6 +89,7 @@ export default class AxpertInterface {
       console.error("Serial port device path parameter is not valid");
       return;
     }
+
     if (this.parameters.autoInitDataStream) {
       this.initDataStream().then(() => {
         this.emitEvent("auto-init-completed", {
@@ -89,25 +104,26 @@ export default class AxpertInterface {
   }
 
   initDataStream() {
-    return new Promise<void>((resolve, reject) => {
-      const handleResponse = (deviceDataJSON) => {
+    return new Promise((resolve, reject) => {
+      const handleResponse = deviceDataJSON => {
         try {
           const firstDeviceData = !this.deviceData;
           this.deviceData = this.mapAxpertDeviceData(deviceDataJSON);
+
           if (firstDeviceData) {
             this.emitEvent("stream-init", {
               message: "Voltronic/Axpert devices data stream init"
             });
             resolve();
           }
-        }
-        catch (error) {
+        } catch (error) {
           this.emitEvent("error", {
             message: "Error processing device data",
             dataDump: error
           });
         }
       };
+
       setTimeout(() => {
         if (!this.deviceData) reject("timeout"); //Rejection by timeout
       }, this.parameters.deviceStatusQueryInterval * 10000);
@@ -117,49 +133,56 @@ export default class AxpertInterface {
     });
   }
 
-  queryDevice(commandId = "QPIGS", responseCallback: Function, errorCallback?: Function): void {
+  queryDevice(commandId = "QPIGS", responseCallback, errorCallback) {
     const queryPromise = () => {
-      return new Promise<string>((resolve, reject) => {
-        exec(`axpert-query -c ${commandId} -p ${this.parameters.serialPortDevicePath}`, (error, stdout, stderr) => {
+      return new Promise((resolve, reject) => {
+        child_process.exec(`axpert-query -c ${commandId} -p ${this.parameters.serialPortDevicePath}`, (error, stdout, stderr) => {
           const errorData = error || stderr;
+
           if (errorData) {
             if (errorCallback) errorCallback(errorData);
             reject(errorData);
             return;
           }
+
           const rawConsoleResponse = stdout.split('\n');
+
           if (rawConsoleResponse[1] && rawConsoleResponse[1].indexOf("NAK") === -1 && rawConsoleResponse[1].indexOf("missmatch") === -1) {
             resolve(rawConsoleResponse[1]);
             responseCallback(rawConsoleResponse[1]);
-          }
-          else {
+          } else {
             if (errorCallback) errorCallback(rawConsoleResponse);
             reject(rawConsoleResponse);
           }
         });
       });
-    }
+    };
+
     this.deviceCommands.queryStack.push(queryPromise);
     this.handleCommands();
   }
 
-  setDevice(commandId = "", setValue = "", responseCallback: Function, errorCallback?: Function): void {
+  setDevice(commandId = "", setValue = "", responseCallback, errorCallback) {
     const setPromise = () => {
-      return new Promise<boolean>((resolve, reject) => {
+      return new Promise((resolve, reject) => {
         const setValueArg = setValue ? ` -v ${setValue}` : "";
-        exec(`axpert-set -c ${commandId}${setValueArg} -p ${this.parameters.serialPortDevicePath}`, (error, stdout, stderr) => {
+        child_process.exec(`axpert-set -c ${commandId}${setValueArg} -p ${this.parameters.serialPortDevicePath}`, (error, stdout, stderr) => {
           const errorData = error || stderr;
+
           if (errorData) {
             if (errorCallback) errorCallback(errorData);
             reject(errorData);
             return;
           }
+
           const rawConsoleResponse = stdout.split('\n');
+
           if (rawConsoleResponse[1] && (rawConsoleResponse[1].indexOf("ACK") !== -1 || rawConsoleResponse[1].indexOf("NAK") !== -1)) {
             switch (rawConsoleResponse[1]) {
               case "ACK":
                 responseCallback(true);
                 break;
+
               case "NAK":
                 responseCallback(false);
                 break;
@@ -169,15 +192,16 @@ export default class AxpertInterface {
                 reject(rawConsoleResponse);
                 break;
             }
+
             resolve(true);
-          }
-          else {
+          } else {
             if (errorCallback) errorCallback(rawConsoleResponse);
             reject(rawConsoleResponse);
           }
         });
       });
-    }
+    };
+
     this.deviceCommands.setStack.push(setPromise);
     this.handleCommands();
   }
@@ -185,12 +209,13 @@ export default class AxpertInterface {
   handleCommands() {
     if (!this.commandResponsePending) {
       const commandPromise = this.getNextCommandPromise();
+
       if (commandPromise) {
         this.commandResponsePending = true;
         commandPromise().then(() => {
           this.commandResponsePending = false;
           this.handleCommands();
-        }).catch((errorData) => {
+        }).catch(errorData => {
           this.commandResponsePending = false;
           this.handleCommands();
           this.emitEvent("error", {
@@ -202,19 +227,19 @@ export default class AxpertInterface {
     }
   }
 
-  getNextCommandPromise(): Function {
+  getNextCommandPromise() {
     if (this.deviceCommands.setStack[0]) {
       const setCommand = this.deviceCommands.setStack[0];
       this.deviceCommands.setStack = this.deviceCommands.setStack.slice(1);
       return setCommand;
-    }
-    else {
+    } else {
       if (this.deviceCommands.queryStack[0]) {
         const queryCommand = this.deviceCommands.queryStack[0];
         this.deviceCommands.queryStack = this.deviceCommands.queryStack.slice(1);
         return queryCommand;
       }
     }
+
     return null;
   }
 
@@ -236,27 +261,30 @@ export default class AxpertInterface {
     return this.deviceData;
   }
 
-  setACInputAsPowerPriority(response = (response: boolean) => { }, error?: Function) {
+  setACInputAsPowerPriority(response = response => {}, error) {
     this.setDevice("POP", "00", response, error);
   }
 
-  setBatteryAsPowerPriority(response = (response: boolean) => { }, error?: Function) {
+  setBatteryAsPowerPriority(response = response => {}, error) {
     this.setDevice("POP", "02", response, error);
   }
 
-  setSolarAsPowerPriority(response = (response: boolean) => { }, error?: Function) {
+  setSolarAsPowerPriority(response = response => {}, error) {
     this.setDevice("POP", "01", response, error);
   }
 
-  allowACInputCharging(response = (response: boolean) => { }, error?: Function) {
+  allowACInputCharging(response = response => {}, error) {
     this.setDevice("PCP", "02", response, error);
   }
 
-  disallowACInputCharging(response = (response: boolean) => { }, error?: Function) {
+  disallowACInputCharging(response = response => {}, error) {
     this.setDevice("PCP", "03", response, error);
   }
 
-  setACInputMaxChargingCurrent(current: number, response = (response: boolean) => { }, error?: Function) {
+  setACInputMaxChargingCurrent(current, response = response => {}, error) {
     this.setDevice("MUCHGC", `0${current}`, response, error);
   }
+
 }
+
+module.exports = AxpertInterface;
