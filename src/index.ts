@@ -7,6 +7,7 @@ interface AxpertInterface_Parameters {
   deviceStatusQueryInterval?: number;
   devicesByIdPath?: string;
   autoInitDataStream?: boolean;
+  retryFailedCommandOnce?: boolean;
 }
 
 interface AxpertInterface_EventData {
@@ -29,12 +30,13 @@ export default class AxpertInterface {
   deviceData: AxpertInterface_DeviceData;
   dataQueryInterval: NodeJS.Timeout;
   commandResponsePending: boolean;
-  constructor(serialPortDevicePath: string, { deviceStatusQueryInterval = 5, autoInitDataStream = true } = {}) {
-    this.version = 0.01;
+  constructor(serialPortDevicePath: string, { deviceStatusQueryInterval = 5, autoInitDataStream = true, retryFailedCommandOnce = true } = {}) {
+    this.version = 0.02;
     this.parameters = {
       deviceStatusQueryInterval,
       serialPortDevicePath,
-      autoInitDataStream
+      autoInitDataStream,
+      retryFailedCommandOnce
     };
     this.listenersStack = [];
     this.deviceCommands = {
@@ -190,21 +192,48 @@ export default class AxpertInterface {
   handleCommands() {
     if (!this.commandResponsePending) {
       const commandPromise = this.getNextCommandPromise();
+
       if (commandPromise) {
         this.commandResponsePending = true;
-        commandPromise().then(() => {
-          this.commandResponsePending = false;
-          this.handleCommands();
-        }).catch((errorData) => {
-          this.commandResponsePending = false;
-          this.handleCommands();
-          this.emitEvent("error", {
-            message: "Error running device command",
-            dataDump: errorData
+        commandPromise()
+          .then(() => {
+            this.commandResponsePending = false;
+            this.handleCommands();
+          }).catch((errorData) => {
+            this.emitEvent("error", {
+              message: "Error running device command",
+              dataDump: errorData
+            });
+            if (this.parameters.retryFailedCommandOnce) {
+              setTimeout(() => {
+                this.retryCommand(commandPromise);
+              }, 1000);
+              return;
+            }
+            this.commandResponsePending = false;
+            this.handleCommands();
           });
-        });
       }
     }
+  }
+
+  retryCommand(commandPromise) {
+    this.emitEvent("command-retry", {
+      message: "Retrying a failed command",
+    });
+
+    commandPromise()
+      .then(() => {
+        this.commandResponsePending = false;
+        this.handleCommands();
+      }).catch((errorData) => {
+        this.emitEvent("error", {
+          message: "Error running device command (retried)",
+          dataDump: errorData
+        });
+        this.commandResponsePending = false;
+        this.handleCommands();
+      });
   }
 
   getNextCommandPromise(): Function {

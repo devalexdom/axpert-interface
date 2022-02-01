@@ -37,13 +37,15 @@ class AxpertInterface_DeviceData {
 class AxpertInterface {
   constructor(serialPortDevicePath, {
     deviceStatusQueryInterval = 5,
-    autoInitDataStream = true
+    autoInitDataStream = true,
+    retryFailedCommandOnce = true
   } = {}) {
-    this.version = 0.01;
+    this.version = 0.02;
     this.parameters = {
       deviceStatusQueryInterval,
       serialPortDevicePath,
-      autoInitDataStream
+      autoInitDataStream,
+      retryFailedCommandOnce
     };
     this.listenersStack = [];
     this.deviceCommands = {
@@ -218,15 +220,40 @@ class AxpertInterface {
           this.commandResponsePending = false;
           this.handleCommands();
         }).catch(errorData => {
-          this.commandResponsePending = false;
-          this.handleCommands();
           this.emitEvent("error", {
             message: "Error running device command",
             dataDump: errorData
           });
+
+          if (this.parameters.retryFailedCommandOnce) {
+            setTimeout(() => {
+              this.retryCommand(commandPromise);
+            }, 1000);
+            return;
+          }
+
+          this.commandResponsePending = false;
+          this.handleCommands();
         });
       }
     }
+  }
+
+  retryCommand(commandPromise) {
+    this.emitEvent("command-retry", {
+      message: "Retrying a failed command"
+    });
+    commandPromise().then(() => {
+      this.commandResponsePending = false;
+      this.handleCommands();
+    }).catch(errorData => {
+      this.emitEvent("error", {
+        message: "Error running device command (retried)",
+        dataDump: errorData
+      });
+      this.commandResponsePending = false;
+      this.handleCommands();
+    });
   }
 
   getNextCommandPromise() {
